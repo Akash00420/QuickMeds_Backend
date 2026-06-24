@@ -32,3 +32,9 @@ router.get("/pharmacy/incoming", authorize("pharmacist"), getIncomingEmergencyRe
 router.patch("/:requestId/respond", authorize("pharmacist"), respondToEmergencyRequest);
 router.patch("/:requestId/fulfill", authorize("pharmacist"), fulfillEmergencyRequest);
 
+// =========================
+// ✅ SHARED (authorization checked in controller / open data)
+// =========================
+router.get("/:requestId", getEmergencyRequestById);
+
+module.exports = router;
