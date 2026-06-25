@@ -1,10 +1,10 @@
-const Reservation = require("../models/Reservation");
-const Medicine = require("../models/Medicine");
-const Pharmacy = require("../models/Pharmacy");
-const Notification = require("../models/Notification");
-const cloudinary = require("../config/cloudinary");
-const asyncHandler = require("../utils/asyncHandler");
-const apiResponse = require("../utils/apiResponse");
+const Reservation = require("../../models/reservationModel/reservationModel");
+const Medicine = require("../../models/medicineModel/medicineModel");
+const Pharmacy = require("../../models/pharmacyModel/pharmacyModel");
+const Notification = require("../../models/notificationModel/notificationModel");
+const cloudinary = require("../../config/cloudinary");
+const asyncHandler = require("../../utils/asyncHandler");
+const apiResponse = require("../../utils/apiResponse");
 
 // =========================
 // ✅ CREATE RESERVATION

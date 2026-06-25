@@ -7,11 +7,11 @@ const {
   getPharmacyReservations,
   updateReservationStatus,
   cancelReservation,
-} = require("../controllers/reservation.controller");
+} = require("../../controllers/reservationcontroller/reservationcontroller"); // ✅ correct depth
 
-const { protect } = require("../middleware/auth.middleware");
-const { authorize } = require("../middleware/role.middleware");
-const { uploadSingle } = require("../middleware/upload.middleware");
+const { protect } = require("../../middleware/authmiddleware/authmiddleware");   // ✅ fixed
+const { authorize } = require("../../middleware/rolemiddleware/rolemiddleware"); // ✅ fixed
+const { uploadSingle } = require("../../middleware/uploadmiddleware/uploadmiddleware"); // ✅ fixed
 
 // All reservation routes require a logged-in user
 router.use(protect);
@@ -33,4 +33,4 @@ router.patch("/:reservationId/status", authorize("pharmacist"), updateReservatio
 // =========================
 router.get("/:reservationId", getReservationById);
 
-module.exports = router;
+module.exports = router; // ✅ only one export at the end

@@ -1,10 +1,10 @@
-const Pharmacy = require("../models/Pharmacy");
-const Medicine = require("../models/Medicine");
-const Notification = require("../models/Notification");
-const cloudinary = require("../config/cloudinary");
-const asyncHandler = require("../utils/asyncHandler");
-const apiResponse = require("../utils/apiResponse");
-const calculateDistance = require("../utils/calculateDistance");
+const Pharmacy = require("../../models/pharmacyModel/pharmacyModel");
+const Medicine = require("../../models/medicineModel/medicineModel");
+const Notification = require("../../models/notificationModel/notificationModel");
+const cloudinary = require("../../config/cloudinary");
+const asyncHandler = require("../../utils/asyncHandler");
+const apiResponse = require("../../utils/apiResponse");
+const calculateDistance = require("../../utils/calculateDistance");
 
 // =========================
 // ✅ REGISTER PHARMACY

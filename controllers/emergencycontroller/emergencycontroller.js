@@ -1,9 +1,9 @@
-const EmergencyRequest = require("../models/EmergencyRequest");
-const Pharmacy = require("../models/Pharmacy");
-const Notification = require("../models/Notification");
-const cloudinary = require("../config/cloudinary");
-const asyncHandler = require("../utils/asyncHandler");
-const apiResponse = require("../utils/apiResponse");
+const EmergencyRequest = require("../../models/emergencyRequestModel/emergencyRequestModel");
+const Pharmacy = require("../../models/pharmacyModel/pharmacyModel");
+const Notification = require("../../models/notificationModel/notificationModel");
+const cloudinary = require("../../config/cloudinary");
+const asyncHandler = require("../../utils/asyncHandler");
+const apiResponse = require("../../utils/apiResponse");
 
 // =========================
 // ✅ CREATE EMERGENCY REQUEST

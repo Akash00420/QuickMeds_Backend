@@ -13,11 +13,11 @@ const {
   deleteMedicine,
   getLowStockMedicines,
   getExpiringMedicines,
-} = require("../controllers/medicine.controller");
+} = require("../../controllers/medicinecontroller/medicinecontroller"); // ✅ Fixed: ../../
 
-const { protect } = require("../middleware/auth.middleware");
-const { authorize } = require("../middleware/role.middleware");
-const { uploadSingle } = require("../middleware/upload.middleware");
+const { protect } = require("../../middleware/authmiddleware/authmiddleware");
+const { authorize } = require("../../middleware/rolemiddleware/rolemiddleware");
+const { uploadSingle } = require("../../middleware/uploadmiddleware/uploadmiddleware");
 
 // =========================
 // ✅ PUBLIC SEARCH ROUTES
@@ -48,4 +48,4 @@ router.post(
 );
 router.delete("/:medicineId", protect, authorize("pharmacist"), deleteMedicine);
 
-module.exports = router;
+module.exports = router; 

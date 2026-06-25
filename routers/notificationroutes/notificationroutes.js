@@ -8,9 +8,9 @@ const {
   markAllAsRead,
   deleteNotification,
   clearAllNotifications,
-} = require("../controllers/notification.controller");
+} = require("../../controllers/notificationcontroller/notificationcontroller"); // ✅ fixed
 
-const { protect } = require("../middleware/auth.middleware");
+const { protect } = require("../../middleware/authmiddleware/authmiddleware"); // ✅ fixed
 
 // All notification routes require a logged-in user
 router.use(protect);

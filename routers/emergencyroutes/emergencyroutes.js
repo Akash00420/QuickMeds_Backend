@@ -9,11 +9,11 @@ const {
   respondToEmergencyRequest,
   fulfillEmergencyRequest,
   cancelEmergencyRequest,
-} = require("../controllers/emergency.controller");
+} = require("../../controllers/emergencycontroller/emergencycontroller"); // ✅ fixed
 
-const { protect } = require("../middleware/auth.middleware");
-const { authorize } = require("../middleware/role.middleware");
-const { uploadSingle } = require("../middleware/upload.middleware");
+const { protect } = require("../../middleware/authmiddleware/authmiddleware");     // ✅ fixed
+const { authorize } = require("../../middleware/rolemiddleware/rolemiddleware");   // ✅ fixed
+const { uploadSingle } = require("../../middleware/uploadmiddleware/uploadmiddleware"); // ✅ fixed
 
 // All emergency routes require a logged-in user
 router.use(protect);
