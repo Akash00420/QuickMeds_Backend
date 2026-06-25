@@ -1,5 +1,5 @@
 const { v4: uuidv4 } = require("uuid");
-const User = require("../../models/userModel/userModel");
+const User = require("../../models/authModel/authModel");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const { SECRET_KEY } = require("../../utils/config");
