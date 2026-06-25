@@ -1,0 +1,5 @@
+const SECRET_KEY = "9a89ca06abd1c44901e4724e9d9f4292a35011cefd9869cc6f13393d22bc63f9ff79f74b6d0679f70a60be5329b135c9b527d5fb8043f13c380ae17770592adc";
+
+module.exports = {
+    SECRET_KEY
+};

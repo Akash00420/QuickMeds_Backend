@@ -1,4 +1,4 @@
-const User = require("../../models/userModel/userModel");
+const User = require("../../models/authModel/authModel");
 
 // --- Dashboard Stats ----------------------------------------
 const getDashboardStats = async (req, res) => {

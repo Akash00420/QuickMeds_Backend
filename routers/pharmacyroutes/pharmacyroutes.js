@@ -13,12 +13,11 @@ const {
   getAllPharmacies,
   verifyPharmacy,
   deactivatePharmacy,
-} = require("../controllers/pharmacycontroller");
+} = require("../../controllers/pharmacycontroller/pharmacycontroller");
 
-const { protect } = require("../middleware/authmiddleware");
-const { authorize } = require("../middleware/rolemiddleware");
-const { uploadSingle, uploadMultiple } = require("../middleware/upload.middleware");
-
+const { protect } = require("../../middleware/authmiddleware/authmiddleware");
+const { authorize } = require("../../middleware/rolemiddleware/rolemiddleware");
+const { uploadSingle, uploadMultiple } = require("../../middleware/uploadmiddleware/uploadmiddleware");
 // =========================
 // ✅ PUBLIC ROUTES
 // =========================
