@@ -1,6 +1,6 @@
-const Notification = require("../models/Notification");
-const asyncHandler = require("../utils/asyncHandler");
-const apiResponse = require("../utils/apiResponse");
+const Notification = require("../../models/notificationModel/notificationModel");
+const asyncHandler = require("../../utils/asyncHandler");
+const apiResponse = require("../../utils/apiResponse");
 
 // =========================
 // ✅ GET MY NOTIFICATIONS

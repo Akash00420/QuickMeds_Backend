@@ -1,7 +1,6 @@
 const { v4: uuidv4 } = require("uuid");
 const User = require("../../models/authModel/authModel");
 const jwt = require("jsonwebtoken");
-const bcrypt = require("bcrypt");
 const { SECRET_KEY } = require("../../utils/config");
 
 // ------------------------ CREATE USER ------------------------
@@ -24,14 +23,12 @@ exports.createregister = async (req, res, next) => {
       });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-
     const newUser = new User({
       id: uuidv4(),
       name,
       email,
       phone,
-      password: hashedPassword,
+      password,        // plain text — pre-save hook handles hashing
       role: "customer",
     });
 
@@ -69,13 +66,11 @@ exports.createDefaultAdmin = async () => {
 
     if (!existingAdmin) {
       // user never registered — create fresh admin account
-      const hashedPassword = await bcrypt.hash("Admin@123", 10);
-
       const newAdmin = new User({
         id: uuidv4(),
         name: "Akash Ghosh",
         email: adminEmail,
-        password: hashedPassword,
+        password: "Admin@123",  // plain text — pre-save hook handles hashing
         role: "admin",
         phone: "0000000000",
         isActive: true,
