@@ -29,7 +29,7 @@ exports.createregister = async (req, res, next) => {
       email,
       phone,
       password,        // plain text — pre-save hook handles hashing
-      role: "customer",
+      role: "user",
     });
 
     await newUser.save();

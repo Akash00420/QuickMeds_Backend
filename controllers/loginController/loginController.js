@@ -14,7 +14,10 @@ exports.createLogin = async (req, res, next) => {
       });
     }
 
-    const user = await User.findOne({ email });
+    // 🔑 password has `select: false` in the schema, so it must be
+    // explicitly requested back here — otherwise user.password is
+    // undefined and bcrypt.compare throws "Illegal arguments".
+    const user = await User.findOne({ email }).select("+password");
 
     if (!user) {
       return res.status(401).json({
