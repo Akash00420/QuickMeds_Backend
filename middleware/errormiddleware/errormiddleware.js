@@ -59,8 +59,7 @@ const errorHandler = (err, req, res, next) => {
     message = err.message;
   }
 
-  console.error("❌ Error:", err.message);
-
+  console.error("❌ Error:", err);
   res.status(statusCode).json({
     success: false,
     message,

@@ -244,23 +244,35 @@ const getAllPharmacies = asyncHandler(async (req, res) => {
 // =========================
 // PUT /api/pharmacies/:pharmacyId/verify   (admin only)
 const verifyPharmacy = asyncHandler(async (req, res) => {
+  console.log("STEP 1: entered verifyPharmacy");
+
   const { approve } = req.body; // true | false
+  console.log("STEP 2: approve =", approve);
 
   const pharmacy = await Pharmacy.findById(req.params.pharmacyId);
+  console.log("STEP 3: pharmacy found =", !!pharmacy);
   if (!pharmacy) return apiResponse.error(res, "Pharmacy not found", 404);
 
   pharmacy.isVerified = !!approve;
   await pharmacy.save();
+  console.log("STEP 4: pharmacy saved, isVerified =", pharmacy.isVerified);
 
-  await Notification.create({
-    recipient: pharmacy.owner,
-    type: approve ? "pharmacy_approved" : "pharmacy_rejected",
-    title: approve ? "Pharmacy Approved" : "Pharmacy Verification Rejected",
-    message: approve
-      ? `Congratulations! ${pharmacy.name} has been verified and is now live on QuickMeds.`
-      : `Your pharmacy ${pharmacy.name} could not be verified. Please check your documents and try again.`,
-    data: { pharmacyId: pharmacy._id },
-  });
+  console.log("STEP 4.5: about to create notification");
+  try {
+    await Notification.create({
+      recipient: pharmacy.owner,
+      type: approve ? "pharmacy_approved" : "pharmacy_rejected",
+      title: approve ? "Pharmacy Approved" : "Pharmacy Verification Rejected",
+      message: approve
+        ? `Congratulations! ${pharmacy.name} has been verified and is now live on QuickMeds.`
+        : `Your pharmacy ${pharmacy.name} could not be verified. Please check your documents and try again.`,
+      data: { pharmacyId: pharmacy._id },
+    });
+  } catch (notifErr) {
+    console.log("NOTIFICATION CREATE FAILED:", notifErr);
+    throw notifErr;
+  }
+  console.log("STEP 5: notification created");
 
   return apiResponse.success(res, { pharmacy }, "Pharmacy verification status updated");
 });

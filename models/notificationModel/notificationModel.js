@@ -105,11 +105,10 @@ notificationSchema.index({ recipient: 1, createdAt: -1 });
 notificationSchema.index({ type: 1 });
 
 // ----- Auto-set readAt when marked as read -----
-notificationSchema.pre("save", function (next) {
+notificationSchema.pre("save", function () {
   if (this.isModified("isRead") && this.isRead && !this.readAt) {
     this.readAt = new Date();
   }
-  next();
 });
 
 module.exports = mongoose.model("Notification", notificationSchema);
