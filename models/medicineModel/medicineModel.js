@@ -171,12 +171,11 @@ medicineSchema.virtual("stockStatus").get(function () {
 });
 
 // ----- Auto-mark unavailable when stock hits 0 -----
-medicineSchema.pre("save", function (next) {
+medicineSchema.pre("save", function () {
   if (this.isModified("quantity")) {
     this.isAvailable       = this.quantity > 0;
     this.stockLastUpdated  = new Date();
   }
-  next();
 });
 
 module.exports = mongoose.model("Medicine", medicineSchema);
