@@ -93,7 +93,7 @@ reservationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });   // TTL: 
 // ----- On completion: increment totalSold on each medicine -----
 reservationSchema.post("save", async function (doc) {
   if (doc.status === "completed") {
-    const Medicine = require("./Medicine");
+    const Medicine = require("../medicineModel/medicineModel");
     for (const item of doc.items) {
       await Medicine.findByIdAndUpdate(item.medicine, {
         $inc: { totalSold: item.quantity },

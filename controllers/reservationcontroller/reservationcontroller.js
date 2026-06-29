@@ -11,8 +11,18 @@ const apiResponse = require("../../utils/apiResponse");
 // =========================
 // POST /api/reservations
 const createReservation = asyncHandler(async (req, res) => {
-  const { pharmacyId, items, notes } = req.body;
+  const { pharmacyId, notes } = req.body;
+  let items = req.body.items;
   // items: [{ medicineId, quantity }]
+
+  // ✅ form-data sends every field as a string — parse items if needed
+  if (typeof items === "string") {
+    try {
+      items = JSON.parse(items);
+    } catch (e) {
+      return apiResponse.error(res, "Items must be valid JSON", 400);
+    }
+  }
 
   if (!Array.isArray(items) || items.length === 0) {
     return apiResponse.error(res, "At least one item is required", 400);
