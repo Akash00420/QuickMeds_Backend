@@ -6,7 +6,10 @@ const { SECRET_KEY } = require("../../utils/config");
 // ------------------------ CREATE USER ------------------------
 exports.createregister = async (req, res, next) => {
   try {
-    const { name, email, password, phone, confirm_password } = req.body;
+    // =========================
+    // ✅ FIX: destructure role from req.body
+    // =========================
+    const { name, email, password, phone, confirm_password, role } = req.body;
 
     if (password !== confirm_password) {
       return res.status(400).json({
@@ -23,13 +26,21 @@ exports.createregister = async (req, res, next) => {
       });
     }
 
+    // =========================
+    // ✅ FIX: respect role sent by frontend
+    // vendor frontend sends role: "pharmacist" → saved as pharmacist
+    // user frontend sends nothing → defaults to "user"
+    // nobody can self-register as admin → guarded below
+    // =========================
+    const assignedRole = role === "pharmacist" ? "pharmacist" : "user";
+
     const newUser = new User({
       id: uuidv4(),
       name,
       email,
       phone,
       password,        // plain text — pre-save hook handles hashing
-      role: "user",
+      role: assignedRole,
     });
 
     await newUser.save();
