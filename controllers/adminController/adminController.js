@@ -1,4 +1,5 @@
 const User = require("../../models/authModel/authModel");
+const Pharmacy = require("../../models/pharmacyModel/pharmacyModel");
 
 // --- Dashboard Stats ----------------------------------------
 const getDashboardStats = async (req, res) => {
@@ -185,6 +186,173 @@ const deleteUser = async (req, res) => {
   }
 };
 
+// --- Admin: Create Vendor (no approval flow) -----------------
+const createVendor = async (req, res) => {
+  try {
+    const {
+      shopName,
+      ownerName,
+      email,
+      phone,
+      password,
+      street,
+      city,
+      state,
+      pincode,
+      longitude,
+      latitude,
+    } = req.body;
+
+    if (!shopName || !ownerName || !email || !phone || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "shopName, ownerName, email, phone and password are required.",
+      });
+    }
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(409).json({
+        success: false,
+        message: "A user with this email already exists.",
+      });
+    }
+
+    // No manual hashing — authModel's pre("save") hook hashes this automatically.
+    const ownerUser = await User.create({
+      name: ownerName,
+      email,
+      phone,
+      password,
+      role: "pharmacist",
+      isActive: true,
+    });
+
+    const pharmacy = await Pharmacy.create({
+      owner: ownerUser._id,
+      name: shopName,
+      registrationNumber: `ADM-${Date.now()}`,
+      phone,
+      email,
+      address: {
+        street: street || "N/A",
+        city: city || "N/A",
+        state: state || "N/A",
+        pincode: pincode || "000000",
+      },
+      location: {
+        type: "Point",
+        coordinates: [Number(longitude) || 0, Number(latitude) || 0],
+      },
+      isVerified: true,
+      isActive: true,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Vendor created successfully.",
+      vendor: pharmacy,
+      owner: { _id: ownerUser._id, name: ownerUser.name, email: ownerUser.email },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to add vendor.",
+      error: error.message,
+    });
+  }
+};
+
+// --- Admin: Get All Vendors -----------------------------------
+const getAllVendorsAdmin = async (req, res) => {
+  try {
+    const vendors = await Pharmacy.find()
+      .populate("owner", "name email phone")
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      totalVendors: vendors.length,
+      vendors,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch vendors.",
+      error: error.message,
+    });
+  }
+};
+
+// --- Admin: Get Single Vendor -----------------------------------
+const getVendorByIdAdmin = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+    const vendor = await Pharmacy.findById(vendorId).populate("owner", "name email phone");
+
+    if (!vendor) {
+      return res.status(404).json({ success: false, message: "Vendor not found." });
+    }
+
+    return res.status(200).json({ success: true, vendor });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch vendor.",
+      error: error.message,
+    });
+  }
+};
+
+// --- Admin: Toggle Vendor Active Status --------------------------
+const toggleVendorActive = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+    const vendor = await Pharmacy.findById(vendorId);
+
+    if (!vendor) {
+      return res.status(404).json({ success: false, message: "Vendor not found." });
+    }
+
+    vendor.isActive = !vendor.isActive;
+    await vendor.save();
+
+    return res.status(200).json({
+      success: true,
+      message: `Vendor ${vendor.isActive ? "activated" : "deactivated"} successfully.`,
+      isActive: vendor.isActive,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to toggle vendor status.",
+      error: error.message,
+    });
+  }
+};
+
+// --- Admin: Delete Vendor -----------------------------------------
+const deleteVendor = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+    const vendor = await Pharmacy.findByIdAndDelete(vendorId);
+
+    if (!vendor) {
+      return res.status(404).json({ success: false, message: "Vendor not found." });
+    }
+
+    await User.findByIdAndDelete(vendor.owner);
+
+    return res.status(200).json({ success: true, message: "Vendor deleted successfully." });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete vendor.",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   getDashboardStats,
   getAllUsers,
@@ -193,4 +361,9 @@ module.exports = {
   toggleSubscription,
   toggleActiveStatus,
   deleteUser,
+  createVendor,
+  getAllVendorsAdmin,
+  getVendorByIdAdmin,
+  toggleVendorActive,
+  deleteVendor,
 };

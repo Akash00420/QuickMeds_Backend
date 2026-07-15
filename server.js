@@ -12,6 +12,7 @@ const corsOptions = {
   origin: [
     "http://localhost:5173",
     "http://localhost:5174",
+    "http://localhost:5175",
     "https://1313kfc0-5173.inc1.devtunnels.ms"
   ],
   credentials: true,
