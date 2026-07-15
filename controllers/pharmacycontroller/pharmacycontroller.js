@@ -1,6 +1,8 @@
+const crypto = require("crypto");
 const Pharmacy = require("../../models/pharmacyModel/pharmacyModel");
 const Medicine = require("../../models/medicineModel/medicineModel");
 const Notification = require("../../models/notificationModel/notificationModel");
+const User = require("../../models/authModel/authModel");
 const cloudinary = require("../../config/cloudinary");
 const asyncHandler = require("../../utils/asyncHandler");
 const apiResponse = require("../../utils/apiResponse");
@@ -244,20 +246,14 @@ const getAllPharmacies = asyncHandler(async (req, res) => {
 // =========================
 // PUT /api/pharmacies/:pharmacyId/verify   (admin only)
 const verifyPharmacy = asyncHandler(async (req, res) => {
-  console.log("STEP 1: entered verifyPharmacy");
-
   const { approve } = req.body; // true | false
-  console.log("STEP 2: approve =", approve);
 
   const pharmacy = await Pharmacy.findById(req.params.pharmacyId);
-  console.log("STEP 3: pharmacy found =", !!pharmacy);
   if (!pharmacy) return apiResponse.error(res, "Pharmacy not found", 404);
 
   pharmacy.isVerified = !!approve;
   await pharmacy.save();
-  console.log("STEP 4: pharmacy saved, isVerified =", pharmacy.isVerified);
 
-  console.log("STEP 4.5: about to create notification");
   try {
     await Notification.create({
       recipient: pharmacy.owner,
@@ -269,10 +265,8 @@ const verifyPharmacy = asyncHandler(async (req, res) => {
       data: { pharmacyId: pharmacy._id },
     });
   } catch (notifErr) {
-    console.log("NOTIFICATION CREATE FAILED:", notifErr);
     throw notifErr;
   }
-  console.log("STEP 5: notification created");
 
   return apiResponse.success(res, { pharmacy }, "Pharmacy verification status updated");
 });
@@ -293,6 +287,106 @@ const deactivatePharmacy = asyncHandler(async (req, res) => {
   return apiResponse.success(res, { pharmacy }, "Pharmacy deactivated");
 });
 
+// =========================
+// ✅ ADMIN: GET ALL VENDORS (verified pharmacies)
+// =========================
+// GET /api/pharmacies/admin/vendors   (admin only)
+const getAllVendors = asyncHandler(async (req, res) => {
+  const pharmacies = await Pharmacy.find({ isVerified: true })
+    .populate("owner", "name email phone")
+    .sort({ createdAt: -1 });
+
+  return apiResponse.success(res, { vendors: pharmacies }, "Vendors fetched");
+});
+
+// =========================
+// ✅ ADMIN: TOGGLE VENDOR ACTIVE STATUS
+// =========================
+// PATCH /api/pharmacies/:pharmacyId/toggle-active   (admin only)
+const toggleVendorActive = asyncHandler(async (req, res) => {
+  const pharmacy = await Pharmacy.findById(req.params.pharmacyId);
+  if (!pharmacy) return apiResponse.error(res, "Pharmacy not found", 404);
+
+  pharmacy.isActive = !pharmacy.isActive;
+  await pharmacy.save();
+
+  return apiResponse.success(res, { pharmacy }, "Vendor status updated");
+});
+
+// =========================
+// ✅ ADMIN: ADD VENDOR DIRECTLY (creates pharmacist User + verified Pharmacy)
+// =========================
+// POST /api/pharmacies/admin/vendors   (admin only)
+const generatePassword = () => crypto.randomBytes(6).toString("base64").slice(0, 10);
+
+const createVendorDirectly = asyncHandler(async (req, res) => {
+  const {
+    shopName,
+    ownerName,
+    email,
+    phone,
+    street,
+    city,
+    state,
+    pincode,
+    longitude,
+    latitude,
+    registrationNumber,
+  } = req.body;
+
+  if (!shopName || !ownerName || !email || !phone || !registrationNumber) {
+    return apiResponse.error(
+      res,
+      "shopName, ownerName, email, phone and registrationNumber are required",
+      400
+    );
+  }
+  if (!street || !city || !state || !pincode) {
+    return apiResponse.error(res, "Full address is required", 400);
+  }
+  if (longitude === undefined || latitude === undefined) {
+    return apiResponse.error(res, "Longitude and latitude are required", 400);
+  }
+
+  const existingUser = await User.findOne({ email });
+  if (existingUser) return apiResponse.error(res, "Email already registered", 409);
+
+  const existingPharmacy = await Pharmacy.findOne({ registrationNumber });
+  if (existingPharmacy) return apiResponse.error(res, "Registration number already in use", 409);
+
+  const generatedPassword = generatePassword();
+
+  const user = await User.create({
+    name: ownerName,
+    email,
+    phone,
+    password: generatedPassword, // pre-save hook hashes this
+    role: "pharmacist",
+  });
+
+  const pharmacy = await Pharmacy.create({
+    owner: user._id,
+    name: shopName,
+    registrationNumber,
+    phone,
+    email,
+    address: { street, city, state, pincode },
+    location: {
+      type: "Point",
+      coordinates: [Number(longitude), Number(latitude)],
+    },
+    isVerified: true, // admin-added, skip the request queue
+    isActive: true,
+  });
+
+  return apiResponse.success(
+    res,
+    { vendor: pharmacy, generatedPassword },
+    "Vendor created successfully",
+    201
+  );
+});
+
 module.exports = {
   registerPharmacy,
   getMyPharmacy,
@@ -305,4 +399,7 @@ module.exports = {
   getAllPharmacies,
   verifyPharmacy,
   deactivatePharmacy,
+  getAllVendors,
+  toggleVendorActive,
+  createVendorDirectly,
 };

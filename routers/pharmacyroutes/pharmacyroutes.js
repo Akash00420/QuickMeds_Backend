@@ -13,11 +13,15 @@ const {
   getAllPharmacies,
   verifyPharmacy,
   deactivatePharmacy,
+  getAllVendors,
+  toggleVendorActive,
+  createVendorDirectly,
 } = require("../../controllers/pharmacycontroller/pharmacycontroller");
 
 const { protect } = require("../../middleware/authmiddleware/authmiddleware");
 const { authorize } = require("../../middleware/rolemiddleware/rolemiddleware");
 const { uploadSingle, uploadMultiple } = require("../../middleware/uploadmiddleware/uploadmiddleware");
+
 // =========================
 // ✅ PUBLIC ROUTES
 // =========================
@@ -33,6 +37,8 @@ router.get("/me/profile", protect, authorize("pharmacist"), getMyPharmacy);
 // ✅ ADMIN ROUTES (specific paths before dynamic :pharmacyId)
 // =========================
 router.get("/", protect, authorize("admin"), getAllPharmacies);
+router.get("/admin/vendors", protect, authorize("admin"), getAllVendors);
+router.post("/admin/vendors", protect, authorize("admin"), createVendorDirectly);
 
 // =========================
 // ✅ PUBLIC ROUTES (dynamic :pharmacyId)
@@ -64,5 +70,6 @@ router.post(
 // =========================
 router.put("/:pharmacyId/verify", protect, authorize("admin"), verifyPharmacy);
 router.put("/:pharmacyId/deactivate", protect, authorize("admin"), deactivatePharmacy);
+router.patch("/:pharmacyId/toggle-active", protect, authorize("admin"), toggleVendorActive);
 
 module.exports = router;
