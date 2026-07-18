@@ -4,6 +4,7 @@ const router = express.Router();
 const {
   searchMedicineNearby,
   suggestMedicines,
+  getAllMedicines, 
   getMedicineById,
   addMedicine,
   bulkAddMedicines,
@@ -13,7 +14,7 @@ const {
   deleteMedicine,
   getLowStockMedicines,
   getExpiringMedicines,
-} = require("../../controllers/medicinecontroller/medicinecontroller"); // ✅ Fixed: ../../
+} = require("../../controllers/medicinecontroller/medicinecontroller");
 
 const { protect } = require("../../middleware/authmiddleware/authmiddleware");
 const { authorize } = require("../../middleware/rolemiddleware/rolemiddleware");
@@ -24,6 +25,7 @@ const { uploadSingle } = require("../../middleware/uploadmiddleware/uploadmiddle
 // =========================
 router.get("/search", searchMedicineNearby);
 router.get("/suggest", suggestMedicines);
+router.get("/all", getAllMedicines); 
 
 // =========================
 // ✅ PHARMACIST ROUTES (specific paths before dynamic :medicineId)
@@ -48,4 +50,4 @@ router.post(
 );
 router.delete("/:medicineId", protect, authorize("pharmacist"), deleteMedicine);
 
-module.exports = router; 
+module.exports = router;

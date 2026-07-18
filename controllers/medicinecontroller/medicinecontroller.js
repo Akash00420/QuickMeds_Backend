@@ -12,6 +12,11 @@ const calculateDistance = require("../../utils/calculateDistance");
 // =========================
 // GET /api/medicines/search?name=paracetamol&longitude=&latitude=&radius=5
 const searchMedicineNearby = asyncHandler(async (req, res) => {
+  // 🐛 DEBUG LOGGING — remove once the bug is found
+  console.log("🔍 FULL URL:", req.originalUrl);
+  console.log("🔍 QUERY RECEIVED:", req.query);
+  console.log("🔍 QUERY TYPE:", typeof req.query, Object.keys(req.query));
+
   const { name, longitude, latitude, radius = 5 } = req.query;
 
   if (!name) return apiResponse.error(res, "Medicine name is required", 400);
@@ -48,6 +53,38 @@ const suggestMedicines = asyncHandler(async (req, res) => {
   const unique = [...new Map(suggestions.map((m) => [m.name.toLowerCase(), m])).values()];
 
   return apiResponse.success(res, { suggestions: unique }, "Suggestions fetched");
+});
+
+// =========================
+// ✅ GET ALL MEDICINES (For User Catalog/Search without location)
+// =========================
+// GET /api/medicines/all
+const getAllMedicines = asyncHandler(async (req, res) => {
+  const { name, category } = req.query;
+  
+  // Build the search query
+  const query = {};
+
+  // If user searches by name, match with name, genericName or brand
+  if (name) {
+    query.$or = [
+      { name: { $regex: name, $options: "i" } },
+      { genericName: { $regex: name, $options: "i" } },
+      { brand: { $regex: name, $options: "i" } }
+    ];
+  }
+
+  // If user selects a category (and it's not "all")
+  if (category && category.toLowerCase() !== "all") {
+    query.category = category;
+  }
+
+  // Fetch medicines and populate pharmacy details
+  const medicines = await Medicine.find(query)
+    .populate("pharmacy", "name address location phone isVerified")
+    .sort({ createdAt: -1 }); // Show recently added medicines first
+
+  return apiResponse.success(res, { medicines }, "All medicines fetched successfully");
 });
 
 // =========================
@@ -278,6 +315,7 @@ const getExpiringMedicines = asyncHandler(async (req, res) => {
 module.exports = {
   searchMedicineNearby,
   suggestMedicines,
+  getAllMedicines,
   getMedicineById,
   addMedicine,
   bulkAddMedicines,
