@@ -23,6 +23,7 @@ const registerPharmacy = asyncHandler(async (req, res) => {
     latitude,
     operatingHours,
     isOpen24Hours,
+    vendorType,
   } = req.body;
 
   const existing = await Pharmacy.findOne({ registrationNumber });
@@ -35,6 +36,7 @@ const registerPharmacy = asyncHandler(async (req, res) => {
     phone,
     email,
     address,
+    vendorType,
     location: {
       type: "Point",
       coordinates: [longitude, latitude],
@@ -93,6 +95,7 @@ const updatePharmacy = asyncHandler(async (req, res) => {
     "operatingHours",
     "isOpen24Hours",
     "acceptsEmergencyRequests",
+    "vendorType",
   ];
 
   allowedFields.forEach((field) => {
@@ -332,6 +335,7 @@ const createVendorDirectly = asyncHandler(async (req, res) => {
     longitude,
     latitude,
     registrationNumber,
+    vendorType,
   } = req.body;
 
   if (!shopName || !ownerName || !email || !phone || !registrationNumber) {
@@ -347,7 +351,9 @@ const createVendorDirectly = asyncHandler(async (req, res) => {
   if (longitude === undefined || latitude === undefined) {
     return apiResponse.error(res, "Longitude and latitude are required", 400);
   }
-
+  if (!Array.isArray(vendorType) || vendorType.length === 0) {
+  return apiResponse.error(res, "At least one vendor type is required", 400);
+}
   const existingUser = await User.findOne({ email });
   if (existingUser) return apiResponse.error(res, "Email already registered", 409);
 
@@ -370,6 +376,7 @@ const createVendorDirectly = asyncHandler(async (req, res) => {
     registrationNumber,
     phone,
     email,
+    vendorType,
     address: { street, city, state, pincode },
     location: {
       type: "Point",

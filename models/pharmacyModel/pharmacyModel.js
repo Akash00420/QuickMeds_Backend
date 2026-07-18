@@ -30,6 +30,26 @@ const pharmacySchema = new mongoose.Schema(
     },
 
     // =========================
+// ✅ VENDOR TYPE (multiple allowed)
+// =========================
+vendorType: {
+  type: [String],
+  enum: [
+    "medicine",
+    "blood_bank",
+    "oxygen",
+    "medical_equipment",
+    "surgical_consumables",
+    "laboratory",
+  ],
+  validate: {
+    validator: (arr) => Array.isArray(arr) && arr.length > 0,
+    message: "At least one vendor type is required",
+  },
+  default: ["medicine"],
+},
+
+    // =========================
     // ✅ ADDRESS & LOCATION
     // =========================
     address: {
