@@ -50,7 +50,10 @@ exports.createLogin = async (req, res, next) => {
         id: user._id,
         name: user.name,
         email: user.email,
-        role: user.role
+        phone: user.phone,         // ✅ FIX: now included
+        address: user.address,     // ✅ FIX: now included
+        role: user.role,
+        createdAt: user.createdAt, // ✅ FIX: needed for "Member since"
       }
     });
 

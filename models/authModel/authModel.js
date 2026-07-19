@@ -79,6 +79,18 @@ const userSchema = new mongoose.Schema(
     },
 
     // =========================
+    // ✅ SUBSCRIPTION STATUS
+    // =========================
+    isSubscribed: {
+      type: Boolean,
+      default: false,
+    },
+    subscriptionExpiry: {
+      type: Date,
+      default: null,
+    },
+
+    // =========================
     // ✅ OTP SYSTEM
     // =========================
     otp: {
