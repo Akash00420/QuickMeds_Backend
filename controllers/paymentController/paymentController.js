@@ -1,6 +1,6 @@
 const Razorpay = require("razorpay");
 const crypto = require("crypto");
-const User = require("../models/userModel/userModel");
+const User = require("../../models/authModel/authModel");
 // Agar aapka koi Medicine Order ka model hai toh usko yahan import karein
 // const MedicineOrder = require("../models/orderModel/orderModel"); 
 

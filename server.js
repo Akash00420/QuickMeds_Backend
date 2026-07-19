@@ -52,6 +52,8 @@ const medicineRoutes     = require("./routers/medicineroutes/medicineroutes");
 const reservationRoutes  = require("./routers/reservationroutes/reservationroutes");
 const emergencyRoutes    = require("./routers/emergencyroutes/emergencyroutes");
 const notificationRoutes = require("./routers/notificationroutes/notificationroutes");
+const subcriptionRoutes  = require("./routers/subscriptionroutes/subscriptionroutes");
+const paymnetRoutes      = require("./routers/paymentroutes/paymentroutes");
 
 // 🔹 Use Routes
 app.use("/api/logins",        loginRoutes);
@@ -62,6 +64,8 @@ app.use("/api/medicines",     medicineRoutes);
 app.use("/api/reservations",  reservationRoutes);
 app.use("/api/emergency",     emergencyRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/subcription",   subcriptionRoutes);
+app.use("/api/payment",       paymnetRoutes);
 
 // 🔹 Health Check
 app.get("/", (req, res) => {
