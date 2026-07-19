@@ -6,10 +6,8 @@ const { SECRET_KEY } = require("../../utils/config");
 // ------------------------ CREATE USER ------------------------
 exports.createregister = async (req, res, next) => {
   try {
-    // =========================
-    // ✅ FIX: destructure role from req.body
-    // =========================
-    const { name, email, password, phone, confirm_password, role } = req.body;
+    // ✅ FIX: destructure address too (was missing entirely)
+    const { name, email, password, phone, address, confirm_password, role } = req.body;
 
     if (password !== confirm_password) {
       return res.status(400).json({
@@ -26,12 +24,6 @@ exports.createregister = async (req, res, next) => {
       });
     }
 
-    // =========================
-    // ✅ FIX: respect role sent by frontend
-    // vendor frontend sends role: "pharmacist" → saved as pharmacist
-    // user frontend sends nothing → defaults to "user"
-    // nobody can self-register as admin → guarded below
-    // =========================
     const assignedRole = role === "pharmacist" ? "pharmacist" : "user";
 
     const newUser = new User({
@@ -39,6 +31,11 @@ exports.createregister = async (req, res, next) => {
       name,
       email,
       phone,
+      // ✅ FIX: frontend sends a single-line address string, schema wants
+      // { street, city, state, pincode } — store it in `street` for now.
+      // If you later split the register form into separate city/state/pincode
+      // inputs, just pass those through here instead.
+      address: address ? { street: address } : undefined,
       password,        // plain text — pre-save hook handles hashing
       role: assignedRole,
     });
@@ -59,7 +56,10 @@ exports.createregister = async (req, res, next) => {
         id: newUser.id,
         name: newUser.name,
         email: newUser.email,
+        phone: newUser.phone,       // ✅ FIX: now included
+        address: newUser.address,   // ✅ FIX: now included
         role: newUser.role,
+        createdAt: newUser.createdAt, // ✅ FIX: needed for "Member since"
       },
     });
   } catch (err) {
@@ -76,12 +76,11 @@ exports.createDefaultAdmin = async () => {
     const existingAdmin = await User.findOne({ email: adminEmail });
 
     if (!existingAdmin) {
-      // user never registered — create fresh admin account
       const newAdmin = new User({
         id: uuidv4(),
         name: "Akash Ghosh",
         email: adminEmail,
-        password: "Admin@123",  // plain text — pre-save hook handles hashing
+        password: "Admin@123",
         role: "admin",
         phone: "0000000000",
         isActive: true,
@@ -103,7 +102,6 @@ exports.createDefaultAdmin = async () => {
       console.log("---------------------------------------------------------");
 
     } else if (existingAdmin.role !== "admin") {
-      // user already registered as customer — promote to admin
       existingAdmin.role = "admin";
       await existingAdmin.save();
 
