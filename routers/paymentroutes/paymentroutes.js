@@ -7,21 +7,22 @@ const {
   verifyMedicinePayment,
 } = require("../../controllers/paymentController/paymentController");
 
-// Middleware import karein
-// const { isAuthenticatedUser } = require("../middleware/auth");
+// ✅ Auth Middleware se sahi function 'protect' ko import karein
+const { protect } = require("../../middleware/authmiddleware/authmiddleware");
 
 // ─── USER ROUTES ───
+
 // Medicine order create karna (Free delivery logic isme run hoga)
 router.post(
   "/order/create", 
-  // isAuthenticatedUser, 
+  protect, 
   createMedicineOrder
 );
 
 // Medicine ka payment verify karna
 router.post(
   "/order/verify", 
-  // isAuthenticatedUser, 
+  protect, 
   verifyMedicinePayment
 );
 

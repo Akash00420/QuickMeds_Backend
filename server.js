@@ -53,7 +53,8 @@ const reservationRoutes  = require("./routers/reservationroutes/reservationroute
 const emergencyRoutes    = require("./routers/emergencyroutes/emergencyroutes");
 const notificationRoutes = require("./routers/notificationroutes/notificationroutes");
 const subcriptionRoutes  = require("./routers/subscriptionroutes/subscriptionroutes");
-const paymnetRoutes      = require("./routers/paymentroutes/paymentroutes");
+const paymentRoutes = require("./routers/paymentroutes/paymentroutes");
+const userRoutes = require("./routers/userroutes/userroutes");
 
 // 🔹 Use Routes
 app.use("/api/logins",        loginRoutes);
@@ -65,7 +66,8 @@ app.use("/api/reservations",  reservationRoutes);
 app.use("/api/emergency",     emergencyRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/subcription",   subcriptionRoutes);
-app.use("/api/payment",       paymnetRoutes);
+app.use("/api/payments", paymentRoutes);
+app.use("/api/users", userRoutes);
 
 // 🔹 Health Check
 app.get("/", (req, res) => {

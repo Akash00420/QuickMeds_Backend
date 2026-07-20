@@ -6,7 +6,7 @@ const {
   createSubscription,
   verifySubscriptionPayment,
   getAllSubscriptions,
-} = require("../../controllers/subscriptionController/subscriptionController");
+} = require("../../controllers/subscriptioncontroller/subscriptioncontroller");
 
 // Middleware import karein (Apne auth middleware ka path dein)
 // const { isAuthenticatedUser, authorizeRoles } = require("../middleware/auth");
