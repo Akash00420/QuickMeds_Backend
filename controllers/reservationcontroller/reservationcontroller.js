@@ -6,23 +6,48 @@ const cloudinary = require("../../config/cloudinary");
 const asyncHandler = require("../../utils/asyncHandler");
 const apiResponse = require("../../utils/apiResponse");
 
-// 1. CREATE RESERVATION
+// 1. CREATE RESERVATION (Yahan Database save logic fix kiya gaya hai)
 const createReservation = asyncHandler(async (req, res) => {
-  // Yahan apna logic paste karein...
   const { pharmacyId, notes, items } = req.body;
-  // (Baaki ka logic jo aapne pehle likha tha)
-  return apiResponse.success(res, { success: true }, "Reservation created");
+
+  // Validation
+  if (!pharmacyId || !items || items.length === 0) {
+    return res.status(400).json({ success: false, message: "Pharmacy and items are required" });
+  }
+
+  // Frontend se 'medicineId' aa raha hai, usko DB model ke 'medicine' key me map karna
+  const formattedItems = items.map((item) => ({
+    medicine: item.medicineId,
+    quantity: item.quantity,
+  }));
+
+  // Database mein Create karna
+  const newReservation = await Reservation.create({
+    user: req.user._id,
+    pharmacy: pharmacyId,
+    items: formattedItems,
+    notes: notes || "",
+    status: "pending",
+  });
+
+  return apiResponse.success(res, { success: true, reservation: newReservation }, "Reservation created successfully");
 });
 
-// 2. GET USER RESERVATIONS
+// 2. GET USER RESERVATIONS (Yahan Populate lagaya gaya hai taaki naam dikhe)
 const getUserReservations = asyncHandler(async (req, res) => {
-  const reservations = await Reservation.find({ user: req.user._id });
+  const reservations = await Reservation.find({ user: req.user._id })
+    .populate("pharmacy", "name") // Pharmacy ka naam fetch karega
+    .populate("items.medicine", "name") // Medicine ka naam fetch karega
+    .sort({ createdAt: -1 }); // Naya sabse upar
+
   return apiResponse.success(res, { reservations }, "Fetched");
 });
 
 // 3. GET BY ID
 const getReservationById = asyncHandler(async (req, res) => {
-  const reservation = await Reservation.findById(req.params.reservationId);
+  const reservation = await Reservation.findById(req.params.reservationId)
+    .populate("pharmacy", "name")
+    .populate("items.medicine", "name");
   return apiResponse.success(res, { reservation }, "Fetched");
 });
 
@@ -42,13 +67,12 @@ const cancelReservation = asyncHandler(async (req, res) => {
   return apiResponse.success(res, {}, "Cancelled");
 });
 
-// 7. GET PROFILE STATS (Naya add kiya)
+// 7. GET PROFILE STATS
 const getProfileStats = asyncHandler(async (req, res) => {
   const totalReservations = await Reservation.countDocuments({ user: req.user._id });
   return apiResponse.success(res, { stats: { totalOrders: 0, totalReservations } }, "Stats fetched");
 });
 
-// ✅ YAHAN EXPORT HONA ZAROORI HAI
 module.exports = {
   createReservation,
   getUserReservations,
