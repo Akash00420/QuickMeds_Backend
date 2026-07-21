@@ -31,8 +31,9 @@ app.set("io", io); // lets controllers do: req.app.get("io").emit(...)
 require("./sockets/inventory.socket")(io);
 require("./sockets/emergency.socket")(io);
 
-// 🔹 Import createDefaultAdmin
+// 🔹 Import createDefaultAdmin + createDefaultSuperAdmin
 const { createDefaultAdmin } = require("./controllers/registerController/registerController");
+const { createDefaultSuperAdmin } = require("./controllers/superadminController/superadminController");
 
 // 🔹 MongoDB Connection
 mongoose
@@ -40,6 +41,7 @@ mongoose
   .then(async () => {
     console.log("✅ MongoDB Connected Successfully");
     await createDefaultAdmin();
+    await createDefaultSuperAdmin();
   })
   .catch((err) => console.log("❌ MongoDB Connection Failed:", err));
 
@@ -53,8 +55,9 @@ const reservationRoutes  = require("./routers/reservationroutes/reservationroute
 const emergencyRoutes    = require("./routers/emergencyroutes/emergencyroutes");
 const notificationRoutes = require("./routers/notificationroutes/notificationroutes");
 const subcriptionRoutes  = require("./routers/subscriptionroutes/subscriptionroutes");
-const paymentRoutes = require("./routers/paymentroutes/paymentroutes");
-const userRoutes = require("./routers/userroutes/userroutes");
+const paymentRoutes      = require("./routers/paymentroutes/paymentroutes");
+const userRoutes         = require("./routers/userroutes/userroutes");
+const superadminRoutes   = require("./routers/superadminroutes/superadminroutes");
 
 // 🔹 Use Routes
 app.use("/api/logins",        loginRoutes);
@@ -66,8 +69,9 @@ app.use("/api/reservations",  reservationRoutes);
 app.use("/api/emergency",     emergencyRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/subcription",   subcriptionRoutes);
-app.use("/api/payments", paymentRoutes);
-app.use("/api/users", userRoutes);
+app.use("/api/payments",      paymentRoutes);
+app.use("/api/users",         userRoutes);
+app.use("/api/superadmin",    superadminRoutes);
 
 // 🔹 Health Check
 app.get("/", (req, res) => {
