@@ -6,39 +6,64 @@ const cloudinary = require("../../config/cloudinary");
 const asyncHandler = require("../../utils/asyncHandler");
 const apiResponse = require("../../utils/apiResponse");
 
-// 1. CREATE RESERVATION (Yahan Database save logic fix kiya gaya hai)
+// 1. CREATE RESERVATION (Failsafe & Secure Validation Fix)
 const createReservation = asyncHandler(async (req, res) => {
   const { pharmacyId, notes, items } = req.body;
 
-  // Validation
+  // Basic Validation
   if (!pharmacyId || !items || items.length === 0) {
     return res.status(400).json({ success: false, message: "Pharmacy and items are required" });
   }
 
-  // Frontend se 'medicineId' aa raha hai, usko DB model ke 'medicine' key me map karna
-  const formattedItems = items.map((item) => ({
-    medicine: item.medicineId,
-    quantity: item.quantity,
-  }));
+  const formattedItems = [];
+  let calculatedTotalAmount = 0;
+
+  // Loop through items to fetch live snapshot from Database
+  for (const item of items) {
+    const medicineData = await Medicine.findById(item.medicineId);
+    
+    if (!medicineData) {
+      return res.status(404).json({ 
+        success: false, 
+        message: `Medicine with ID ${item.medicineId} not found` 
+      });
+    }
+
+    // Push complete object satisfying Mongoose Schema requirements
+    formattedItems.push({
+      medicine: item.medicineId,
+      name: medicineData.name,               // ✅ Mongoose required 'name' fulfilled
+      price: medicineData.sellingPrice,      // ✅ Mongoose required 'price' fulfilled
+      quantity: Number(item.quantity),
+    });
+
+    // Calculate subtotal for this item
+    calculatedTotalAmount += medicineData.sellingPrice * Number(item.quantity);
+  }
 
   // Database mein Create karna
   const newReservation = await Reservation.create({
     user: req.user._id,
     pharmacy: pharmacyId,
     items: formattedItems,
+    totalAmount: calculatedTotalAmount,      // ✅ Mongoose required 'totalAmount' fulfilled
     notes: notes || "",
     status: "pending",
   });
 
-  return apiResponse.success(res, { success: true, reservation: newReservation }, "Reservation created successfully");
+  return apiResponse.success(
+    res, 
+    { success: true, reservation: newReservation }, 
+    "Reservation created successfully"
+  );
 });
 
-// 2. GET USER RESERVATIONS (Yahan Populate lagaya gaya hai taaki naam dikhe)
+// 2. GET USER RESERVATIONS
 const getUserReservations = asyncHandler(async (req, res) => {
   const reservations = await Reservation.find({ user: req.user._id })
-    .populate("pharmacy", "name") // Pharmacy ka naam fetch karega
-    .populate("items.medicine", "name") // Medicine ka naam fetch karega
-    .sort({ createdAt: -1 }); // Naya sabse upar
+    .populate("pharmacy", "name") 
+    .populate("items.medicine", "name") 
+    .sort({ createdAt: -1 }); 
 
   return apiResponse.success(res, { reservations }, "Fetched");
 });
