@@ -1,28 +1,31 @@
 const multer = require("multer");
 const path = require("path");
+const fs = require("fs");
+
+// 🔹 Ensure "uploads" directory exists automatically
+const uploadDir = path.join(__dirname, "../../uploads");
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
 
 // =========================
 // ✅ MULTER STORAGE
 // =========================
-// Files are stored temporarily on disk, then uploaded to Cloudinary
-// inside the controller (which deletes the temp file's job is just
-// to get the file off the wire — Cloudinary's SDK reads req.file.path).
-
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, "../../uploads"));
+    cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, `${uniqueSuffix}-${file.originalname}`);
+    // Spaces in filename replace to underscores for safety
+    const safeName = file.originalname.replace(/\s+/g, "_");
+    cb(null, `${uniqueSuffix}-${safeName}`);
   },
 });
 
 // =========================
 // ✅ FILE FILTER
 // =========================
-// Accepts images and PDFs (covers prescriptions, license docs, photos)
-
 const allowedTypes = [
   "image/jpeg",
   "image/jpg",
@@ -35,7 +38,10 @@ const fileFilter = (req, file, cb) => {
   if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error("Unsupported file type. Only JPG, PNG, WEBP, and PDF are allowed."), false);
+    cb(
+      new Error("Unsupported file type. Only JPG, PNG, WEBP, and PDF are allowed."),
+      false
+    );
   }
 };
 
@@ -46,17 +52,26 @@ const upload = multer({
 });
 
 // =========================
-// ✅ SINGLE FILE UPLOAD
+// ✅ SINGLE FILE UPLOAD (WITH ERROR WRAPPER)
 // =========================
-// Usage: uploadSingle("avatar") → expects field name "avatar" in the request
-
-const uploadSingle = (fieldName) => upload.single(fieldName);
+const uploadSingle = (fieldName) => {
+  return (req, res, next) => {
+    upload.single(fieldName)(req, res, (err) => {
+      if (err) {
+        return res.status(400).json({
+          success: false,
+          message: err.message || "File upload failed",
+        });
+      }
+      next();
+    });
+  };
+};
 
 // =========================
 // ✅ MULTIPLE FILE UPLOAD
 // =========================
-// Usage: uploadMultiple("images", 5) → expects field name "images", max 5 files
-
-const uploadMultiple = (fieldName, maxCount = 5) => upload.array(fieldName, maxCount);
+const uploadMultiple = (fieldName, maxCount = 5) =>
+  upload.array(fieldName, maxCount);
 
 module.exports = { uploadSingle, uploadMultiple };

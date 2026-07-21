@@ -4,7 +4,7 @@ const router = express.Router();
 const {
   searchMedicineNearby,
   suggestMedicines,
-  getAllMedicines, 
+  getAllMedicines,
   getMedicineById,
   addMedicine,
   bulkAddMedicines,
@@ -25,22 +25,41 @@ const { uploadSingle } = require("../../middleware/uploadmiddleware/uploadmiddle
 // =========================
 router.get("/search", searchMedicineNearby);
 router.get("/suggest", suggestMedicines);
-router.get("/all", getAllMedicines); 
+router.get("/all", getAllMedicines);
 
 // =========================
 // ✅ PHARMACIST ROUTES (specific paths before dynamic :medicineId)
 // =========================
 router.get("/low-stock", protect, authorize("pharmacist"), getLowStockMedicines);
 router.get("/expiring", protect, authorize("pharmacist"), getExpiringMedicines);
-router.post("/", protect, authorize("pharmacist"), addMedicine);
+
+// 💊 Add Medicine (supports single image upload)
+router.post(
+  "/",
+  protect,
+  authorize("pharmacist"),
+  uploadSingle("image"), // 👈 Added upload middleware here
+  addMedicine
+);
+
 router.post("/bulk", protect, authorize("pharmacist"), bulkAddMedicines);
 
 // =========================
 // ✅ DYNAMIC :medicineId ROUTES
 // =========================
 router.get("/:medicineId", getMedicineById);
-router.put("/:medicineId", protect, authorize("pharmacist"), updateMedicine);
+
+// ✏️ Update Medicine (supports updating image as well)
+router.put(
+  "/:medicineId",
+  protect,
+  authorize("pharmacist"),
+  uploadSingle("image"), // 👈 Added upload middleware here
+  updateMedicine
+);
+
 router.patch("/:medicineId/stock", protect, authorize("pharmacist"), updateStock);
+
 router.post(
   "/:medicineId/image",
   protect,
@@ -48,6 +67,7 @@ router.post(
   uploadSingle("image"),
   uploadMedicineImage
 );
+
 router.delete("/:medicineId", protect, authorize("pharmacist"), deleteMedicine);
 
 module.exports = router;

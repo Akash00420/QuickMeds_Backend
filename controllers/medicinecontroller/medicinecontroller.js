@@ -1,3 +1,4 @@
+const fs = require("fs");
 const medicineService = require("../../services/medicineservice/medicineservice");
 const Medicine = require("../../models/medicineModel/medicineModel");
 const Pharmacy = require("../../models/pharmacyModel/pharmacyModel");
@@ -8,11 +9,28 @@ const apiResponse = require("../../utils/apiResponse");
 const calculateDistance = require("../../utils/calculateDistance");
 
 // =========================
+// 🛠️ HELPER: CLOUDINARY UPLOAD & DISK CLEANUP
+// =========================
+const uploadToCloudinary = async (filePath, folder = "quickmeds/medicines") => {
+  try {
+    const result = await cloudinary.uploader.upload(filePath, { folder });
+    return {
+      url: result.secure_url,
+      publicId: result.public_id,
+    };
+  } finally {
+    // Local server disk se temporary file ko delete kar dein
+    if (filePath && fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+  }
+};
+
+// =========================
 // ✅ SEARCH MEDICINE NEARBY  (core QuickMeds search)
 // =========================
 // GET /api/medicines/search?name=paracetamol&longitude=&latitude=&radius=5
 const searchMedicineNearby = asyncHandler(async (req, res) => {
-  // 🐛 DEBUG LOGGING — remove once the bug is found
   console.log("🔍 FULL URL:", req.originalUrl);
   console.log("🔍 QUERY RECEIVED:", req.query);
   console.log("🔍 QUERY TYPE:", typeof req.query, Object.keys(req.query));
@@ -62,10 +80,8 @@ const suggestMedicines = asyncHandler(async (req, res) => {
 const getAllMedicines = asyncHandler(async (req, res) => {
   const { name, category } = req.query;
   
-  // Build the search query
   const query = {};
 
-  // If user searches by name, match with name, genericName or brand
   if (name) {
     query.$or = [
       { name: { $regex: name, $options: "i" } },
@@ -74,15 +90,13 @@ const getAllMedicines = asyncHandler(async (req, res) => {
     ];
   }
 
-  // If user selects a category (and it's not "all")
   if (category && category.toLowerCase() !== "all") {
     query.category = category;
   }
 
-  // Fetch medicines and populate pharmacy details
   const medicines = await Medicine.find(query)
     .populate("pharmacy", "name address location phone isVerified")
-    .sort({ createdAt: -1 }); // Show recently added medicines first
+    .sort({ createdAt: -1 });
 
   return apiResponse.success(res, { medicines }, "All medicines fetched successfully");
 });
@@ -103,15 +117,25 @@ const getMedicineById = asyncHandler(async (req, res) => {
 });
 
 // =========================
-// ✅ ADD MEDICINE  (pharmacist)
+// ✅ ADD MEDICINE  (pharmacist - supports image upload)
 // =========================
 // POST /api/medicines
 const addMedicine = asyncHandler(async (req, res) => {
   const pharmacy = await Pharmacy.findOne({ owner: req.user._id });
-  if (!pharmacy) return apiResponse.error(res, "No pharmacy linked to this account", 404);
+  if (!pharmacy) {
+    if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+    return apiResponse.error(res, "No pharmacy linked to this account", 404);
+  }
+
+  const medicineData = { ...req.body };
+
+  // 📸 Upload disk temp file to Cloudinary & delete from local disk
+  if (req.file) {
+    medicineData.image = await uploadToCloudinary(req.file.path);
+  }
 
   const medicine = await Medicine.create({
-    ...req.body,
+    ...medicineData,
     pharmacy: pharmacy._id,
     stockLastUpdatedBy: req.user._id,
   });
@@ -126,7 +150,7 @@ const addMedicine = asyncHandler(async (req, res) => {
 // =========================
 // POST /api/medicines/bulk
 const bulkAddMedicines = asyncHandler(async (req, res) => {
-  const { medicines } = req.body; // array of medicine objects
+  const { medicines } = req.body;
 
   if (!Array.isArray(medicines) || medicines.length === 0) {
     return apiResponse.error(res, "Medicines array is required", 400);
@@ -149,20 +173,36 @@ const bulkAddMedicines = asyncHandler(async (req, res) => {
 });
 
 // =========================
-// ✅ UPDATE MEDICINE DETAILS  (pharmacist)
+// ✅ UPDATE MEDICINE DETAILS  (pharmacist - supports image replacement)
 // =========================
 // PUT /api/medicines/:medicineId
 const updateMedicine = asyncHandler(async (req, res) => {
   const medicine = await Medicine.findById(req.params.medicineId).populate("pharmacy");
-  if (!medicine) return apiResponse.error(res, "Medicine not found", 404);
+  if (!medicine) {
+    if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+    return apiResponse.error(res, "Medicine not found", 404);
+  }
 
   if (medicine.pharmacy.owner.toString() !== req.user._id.toString()) {
+    if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
     return apiResponse.error(res, "Not authorized to edit this medicine", 403);
   }
 
+  const updateData = { ...req.body };
+
+  // 🖼️ If a new image is uploaded
+  if (req.file) {
+    // Purani Cloudinary image destroy karein
+    if (medicine.image?.publicId) {
+      await cloudinary.uploader.destroy(medicine.image.publicId).catch(() => {});
+    }
+    // Nai image Cloudinary par upload karke local temp file delete karein
+    updateData.image = await uploadToCloudinary(req.file.path);
+  }
+
   const restrictedFields = ["pharmacy", "totalSold"];
-  Object.keys(req.body).forEach((key) => {
-    if (!restrictedFields.includes(key)) medicine[key] = req.body[key];
+  Object.keys(updateData).forEach((key) => {
+    if (!restrictedFields.includes(key)) medicine[key] = updateData[key];
   });
 
   medicine.stockLastUpdatedBy = req.user._id;
@@ -193,7 +233,6 @@ const updateStock = asyncHandler(async (req, res) => {
   medicine.stockLastUpdatedBy = req.user._id;
   await medicine.save();
 
-  // Emit real-time update to anyone watching this medicine's stock
   const io = req.app.get("io");
   if (io) {
     io.to(`medicine:${medicine._id}`).emit("stock:updated", {
@@ -204,7 +243,6 @@ const updateStock = asyncHandler(async (req, res) => {
     });
   }
 
-  // Low stock notification to the pharmacist
   if (medicine.quantity === 0) {
     await Notification.create({
       recipient: medicine.pharmacy.owner,
@@ -227,31 +265,34 @@ const updateStock = asyncHandler(async (req, res) => {
 });
 
 // =========================
-// ✅ UPLOAD MEDICINE IMAGE  (pharmacist)
+// ✅ UPLOAD / REPLACE MEDICINE IMAGE  (pharmacist)
 // =========================
 // POST /api/medicines/:medicineId/image
 const uploadMedicineImage = asyncHandler(async (req, res) => {
   if (!req.file) return apiResponse.error(res, "No image provided", 400);
 
   const medicine = await Medicine.findById(req.params.medicineId).populate("pharmacy");
-  if (!medicine) return apiResponse.error(res, "Medicine not found", 404);
+  if (!medicine) {
+    if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+    return apiResponse.error(res, "Medicine not found", 404);
+  }
 
   if (medicine.pharmacy.owner.toString() !== req.user._id.toString()) {
+    if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
     return apiResponse.error(res, "Not authorized", 403);
   }
 
+  // Purani image Delete
   if (medicine.image?.publicId) {
     await cloudinary.uploader.destroy(medicine.image.publicId).catch(() => {});
   }
 
-  const result = await cloudinary.uploader.upload(req.file.path, {
-    folder: "quickmeds/medicines",
-  });
+  // Nai image Cloudinary par save aur local disk clean
+  medicine.image = await uploadToCloudinary(req.file.path);
 
-  medicine.image = { url: result.secure_url, publicId: result.public_id };
   await medicine.save();
 
-  return apiResponse.success(res, { medicine }, "Medicine image uploaded");
+  return apiResponse.success(res, { medicine }, "Medicine image uploaded successfully");
 });
 
 // =========================
