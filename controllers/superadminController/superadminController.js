@@ -125,6 +125,32 @@ const deleteAdmin = async (req, res) => {
   }
 };
 
+// 🔹 User management (superadmin viewing platform users)
+const getAllUsersForSuperAdmin = async (req, res) => {
+  try {
+    const users = await User.find({ role: "user" });
+    res.status(200).json({ success: true, data: { users, total: users.length } });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+const toggleUserStatusForSuperAdmin = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    user.isActive = !user.isActive;
+    await user.save();
+
+    res.status(200).json({ success: true, data: { isActive: user.isActive } });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 module.exports = {
   createDefaultSuperAdmin,
   loginSuperAdmin,
@@ -132,4 +158,6 @@ module.exports = {
   createAdmin,
   toggleAdminStatus,
   deleteAdmin,
+  getAllUsersForSuperAdmin,
+  toggleUserStatusForSuperAdmin,
 };

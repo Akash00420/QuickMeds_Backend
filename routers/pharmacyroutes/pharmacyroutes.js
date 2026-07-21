@@ -34,11 +34,11 @@ router.post("/", protect, authorize("pharmacist"), registerPharmacy);
 router.get("/me/profile", protect, authorize("pharmacist"), getMyPharmacy);
 
 // =========================
-// ✅ ADMIN ROUTES (specific paths before dynamic :pharmacyId)
+// ✅ ADMIN + SUPERADMIN ROUTES (specific paths before dynamic :pharmacyId)
 // =========================
-router.get("/", protect, authorize("admin"), getAllPharmacies);
-router.get("/admin/vendors", protect, authorize("admin"), getAllVendors);
-router.post("/admin/vendors", protect, authorize("admin"), createVendorDirectly);
+router.get("/", protect, authorize("admin", "superadmin"), getAllPharmacies);
+router.get("/admin/vendors", protect, authorize("admin", "superadmin"), getAllVendors);
+router.post("/admin/vendors", protect, authorize("admin", "superadmin"), createVendorDirectly);
 
 // =========================
 // ✅ PUBLIC ROUTES (dynamic :pharmacyId)
@@ -66,10 +66,10 @@ router.post(
 );
 
 // =========================
-// ✅ ADMIN ROUTES (dynamic :pharmacyId)
+// ✅ ADMIN + SUPERADMIN ROUTES (dynamic :pharmacyId)
 // =========================
-router.put("/:pharmacyId/verify", protect, authorize("admin"), verifyPharmacy);
-router.put("/:pharmacyId/deactivate", protect, authorize("admin"), deactivatePharmacy);
-router.patch("/:pharmacyId/toggle-active", protect, authorize("admin"), toggleVendorActive);
+router.put("/:pharmacyId/verify", protect, authorize("admin", "superadmin"), verifyPharmacy);
+router.put("/:pharmacyId/deactivate", protect, authorize("admin", "superadmin"), deactivatePharmacy);
+router.patch("/:pharmacyId/toggle-active", protect, authorize("admin", "superadmin"), toggleVendorActive);
 
 module.exports = router;
