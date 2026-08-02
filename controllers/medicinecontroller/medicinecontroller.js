@@ -19,7 +19,6 @@ const uploadToCloudinary = async (filePath, folder = "quickmeds/medicines") => {
       publicId: result.public_id,
     };
   } finally {
-    // Local server disk se temporary file ko delete kar dein
     if (filePath && fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
@@ -27,14 +26,9 @@ const uploadToCloudinary = async (filePath, folder = "quickmeds/medicines") => {
 };
 
 // =========================
-// ✅ SEARCH MEDICINE NEARBY  (core QuickMeds search)
+// ✅ SEARCH MEDICINE NEARBY
 // =========================
-// GET /api/medicines/search?name=paracetamol&longitude=&latitude=&radius=5
 const searchMedicineNearby = asyncHandler(async (req, res) => {
-  console.log("🔍 FULL URL:", req.originalUrl);
-  console.log("🔍 QUERY RECEIVED:", req.query);
-  console.log("🔍 QUERY TYPE:", typeof req.query, Object.keys(req.query));
-
   const { name, longitude, latitude, radius = 5 } = req.query;
 
   if (!name) return apiResponse.error(res, "Medicine name is required", 400);
@@ -55,7 +49,6 @@ const searchMedicineNearby = asyncHandler(async (req, res) => {
 // =========================
 // ✅ AUTOCOMPLETE / SUGGESTIONS
 // =========================
-// GET /api/medicines/suggest?q=para
 const suggestMedicines = asyncHandler(async (req, res) => {
   const { q } = req.query;
   if (!q || q.trim().length < 2) return apiResponse.success(res, { suggestions: [] }, "OK");
@@ -67,19 +60,22 @@ const suggestMedicines = asyncHandler(async (req, res) => {
     .select("name genericName brand strength")
     .limit(10);
 
-  // De-duplicate by name
   const unique = [...new Map(suggestions.map((m) => [m.name.toLowerCase(), m])).values()];
 
   return apiResponse.success(res, { suggestions: unique }, "Suggestions fetched");
 });
 
 // =========================
-// ✅ GET ALL MEDICINES (For User Catalog/Search without location)
+// ✅ GET ALL MEDICINES (With Location Distance)
 // =========================
-// GET /api/medicines/all
 const getAllMedicines = asyncHandler(async (req, res) => {
-  const { name, category } = req.query;
-  
+  const { name, category, lat, lng, latitude, longitude } = req.query;
+
+  // Read User Coordinates
+  const userLat = Number(lat || latitude);
+  const userLng = Number(lng || longitude);
+  const hasLocation = !isNaN(userLat) && !isNaN(userLng);
+
   const query = {};
 
   if (name) {
@@ -98,13 +94,72 @@ const getAllMedicines = asyncHandler(async (req, res) => {
     .populate("pharmacy", "name address location phone isVerified")
     .sort({ createdAt: -1 });
 
-  return apiResponse.success(res, { medicines }, "All medicines fetched successfully");
+  const formattedMedicines = medicines.map((medDoc) => {
+    const med = medDoc.toObject({ virtuals: true });
+    const pharmacy = med.pharmacy;
+
+    let distance = null;
+    let vendorLat = null;
+    let vendorLng = null;
+
+    if (pharmacy && pharmacy.location && Array.isArray(pharmacy.location.coordinates)) {
+      // MongoDB GeoJSON coordinates: [longitude, latitude][cite: 2]
+      [vendorLng, vendorLat] = pharmacy.location.coordinates;
+
+      if (hasLocation && vendorLat && vendorLng) {
+        try {
+          // Calculate distance using helper utility[cite: 1]
+          const rawDistance = calculateDistance(userLat, userLng, vendorLat, vendorLng);
+          distance = Number(Number(rawDistance).toFixed(1));
+        } catch (err) {
+          console.error("Distance calculation error:", err);
+        }
+      }
+    }
+
+    const formattedAddress = pharmacy?.address
+      ? `${pharmacy.address.street || ""}, ${pharmacy.address.city || ""}, ${pharmacy.address.state || ""}`
+          .replace(/^, |, $/g, "")
+          .trim()
+      : "Address not available";
+
+    return {
+      ...med,
+      distance,
+      vendor: pharmacy
+        ? {
+            id: pharmacy._id,
+            name: pharmacy.name,
+            storeName: pharmacy.name,
+            phone: pharmacy.phone,
+            address: formattedAddress,
+            isVerified: pharmacy.isVerified,
+            lat: vendorLat,
+            lng: vendorLng,
+          }
+        : null,
+    };
+  });
+
+  // Sort nearest vendor medicines first if user location is provided
+  if (hasLocation) {
+    formattedMedicines.sort((a, b) => {
+      if (a.distance === null) return 1;
+      if (b.distance === null) return -1;
+      return a.distance - b.distance;
+    });
+  }
+
+  return apiResponse.success(
+    res,
+    { medicines: formattedMedicines },
+    "All medicines fetched successfully"
+  );
 });
 
 // =========================
 // ✅ GET MEDICINE BY ID
 // =========================
-// GET /api/medicines/:medicineId
 const getMedicineById = asyncHandler(async (req, res) => {
   const medicine = await Medicine.findById(req.params.medicineId).populate(
     "pharmacy",
@@ -117,9 +172,8 @@ const getMedicineById = asyncHandler(async (req, res) => {
 });
 
 // =========================
-// ✅ ADD MEDICINE  (pharmacist - supports image upload)
+// ✅ ADD MEDICINE
 // =========================
-// POST /api/medicines
 const addMedicine = asyncHandler(async (req, res) => {
   const pharmacy = await Pharmacy.findOne({ owner: req.user._id });
   if (!pharmacy) {
@@ -129,7 +183,6 @@ const addMedicine = asyncHandler(async (req, res) => {
 
   const medicineData = { ...req.body };
 
-  // 📸 Upload disk temp file to Cloudinary & delete from local disk
   if (req.file) {
     medicineData.image = await uploadToCloudinary(req.file.path);
   }
@@ -146,9 +199,8 @@ const addMedicine = asyncHandler(async (req, res) => {
 });
 
 // =========================
-// ✅ BULK ADD MEDICINES  (pharmacist — e.g. CSV import)
+// ✅ BULK ADD MEDICINES
 // =========================
-// POST /api/medicines/bulk
 const bulkAddMedicines = asyncHandler(async (req, res) => {
   const { medicines } = req.body;
 
@@ -173,9 +225,8 @@ const bulkAddMedicines = asyncHandler(async (req, res) => {
 });
 
 // =========================
-// ✅ UPDATE MEDICINE DETAILS  (pharmacist - supports image replacement)
+// ✅ UPDATE MEDICINE DETAILS
 // =========================
-// PUT /api/medicines/:medicineId
 const updateMedicine = asyncHandler(async (req, res) => {
   const medicine = await Medicine.findById(req.params.medicineId).populate("pharmacy");
   if (!medicine) {
@@ -190,13 +241,10 @@ const updateMedicine = asyncHandler(async (req, res) => {
 
   const updateData = { ...req.body };
 
-  // 🖼️ If a new image is uploaded
   if (req.file) {
-    // Purani Cloudinary image destroy karein
     if (medicine.image?.publicId) {
       await cloudinary.uploader.destroy(medicine.image.publicId).catch(() => {});
     }
-    // Nai image Cloudinary par upload karke local temp file delete karein
     updateData.image = await uploadToCloudinary(req.file.path);
   }
 
@@ -212,9 +260,8 @@ const updateMedicine = asyncHandler(async (req, res) => {
 });
 
 // =========================
-// ✅ UPDATE STOCK QUANTITY  (pharmacist — live stock updates)
+// ✅ UPDATE STOCK QUANTITY
 // =========================
-// PATCH /api/medicines/:medicineId/stock
 const updateStock = asyncHandler(async (req, res) => {
   const { quantity } = req.body;
 
@@ -265,9 +312,8 @@ const updateStock = asyncHandler(async (req, res) => {
 });
 
 // =========================
-// ✅ UPLOAD / REPLACE MEDICINE IMAGE  (pharmacist)
+// ✅ UPLOAD / REPLACE MEDICINE IMAGE
 // =========================
-// POST /api/medicines/:medicineId/image
 const uploadMedicineImage = asyncHandler(async (req, res) => {
   if (!req.file) return apiResponse.error(res, "No image provided", 400);
 
@@ -282,12 +328,10 @@ const uploadMedicineImage = asyncHandler(async (req, res) => {
     return apiResponse.error(res, "Not authorized", 403);
   }
 
-  // Purani image Delete
   if (medicine.image?.publicId) {
     await cloudinary.uploader.destroy(medicine.image.publicId).catch(() => {});
   }
 
-  // Nai image Cloudinary par save aur local disk clean
   medicine.image = await uploadToCloudinary(req.file.path);
 
   await medicine.save();
@@ -296,9 +340,8 @@ const uploadMedicineImage = asyncHandler(async (req, res) => {
 });
 
 // =========================
-// ✅ DELETE MEDICINE  (pharmacist)
+// ✅ DELETE MEDICINE
 // =========================
-// DELETE /api/medicines/:medicineId
 const deleteMedicine = asyncHandler(async (req, res) => {
   const medicine = await Medicine.findById(req.params.medicineId).populate("pharmacy");
   if (!medicine) return apiResponse.error(res, "Medicine not found", 404);
@@ -318,9 +361,8 @@ const deleteMedicine = asyncHandler(async (req, res) => {
 });
 
 // =========================
-// ✅ GET LOW STOCK MEDICINES  (pharmacist dashboard)
+// ✅ GET LOW STOCK MEDICINES
 // =========================
-// GET /api/medicines/low-stock
 const getLowStockMedicines = asyncHandler(async (req, res) => {
   const pharmacy = await Pharmacy.findOne({ owner: req.user._id });
   if (!pharmacy) return apiResponse.error(res, "No pharmacy linked to this account", 404);
@@ -334,9 +376,8 @@ const getLowStockMedicines = asyncHandler(async (req, res) => {
 });
 
 // =========================
-// ✅ GET EXPIRING MEDICINES  (pharmacist dashboard)
+// ✅ GET EXPIRING MEDICINES
 // =========================
-// GET /api/medicines/expiring?days=30
 const getExpiringMedicines = asyncHandler(async (req, res) => {
   const { days = 30 } = req.query;
 

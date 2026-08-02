@@ -1,7 +1,6 @@
 const mongoose = require("mongoose");
 
 // One document = one medicine SKU stocked at one pharmacy
-
 const medicineSchema = new mongoose.Schema(
   {
     pharmacy: {
@@ -65,6 +64,34 @@ const medicineSchema = new mongoose.Schema(
     requiresPrescription: {
       type: Boolean,
       default: false,
+    },
+
+    // =========================
+    // ✅ NEW DETAILED INFO (For 1mg-like UI)
+    // =========================
+    introduction: { 
+      type: String, 
+      default: "" 
+    },
+    uses: { 
+      type: String, 
+      default: "" 
+    },
+    benefits: { 
+      type: String, 
+      default: "" 
+    },
+    sideEffects: [
+      { type: String }
+    ], // Array to show as bullet points
+    howItWorks: { 
+      type: String, 
+      default: "" 
+    },
+    safetyAdvice: {
+      alcohol: { type: String, default: "" },
+      pregnancy: { type: String, default: "" },
+      driving: { type: String, default: "" }
     },
 
     // =========================
