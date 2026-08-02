@@ -26,6 +26,45 @@ const uploadToCloudinary = async (filePath, folder = "quickmeds/medicines") => {
 };
 
 // =========================
+// 🛠️ HELPER: PARSE FORM DATA (FOR SAFETY ADVICE & TYPES)
+// =========================
+const parseMedicineBody = (body) => {
+  const data = { ...body };
+
+  // Reconstruct safetyAdvice if sent via FormData dot-notation
+  if (
+    body["safetyAdvice.alcohol"] !== undefined ||
+    body["safetyAdvice.pregnancy"] !== undefined ||
+    body["safetyAdvice.driving"] !== undefined
+  ) {
+    data.safetyAdvice = {
+      alcohol: body["safetyAdvice.alcohol"] || "",
+      pregnancy: body["safetyAdvice.pregnancy"] || "",
+      driving: body["safetyAdvice.driving"] || "",
+    };
+    delete data["safetyAdvice.alcohol"];
+    delete data["safetyAdvice.pregnancy"];
+    delete data["safetyAdvice.driving"];
+  }
+
+  // Ensure sideEffects is parsed as an array if sent as comma-separated string
+  if (data.sideEffects && typeof data.sideEffects === "string") {
+    data.sideEffects = data.sideEffects
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+
+  // Convert boolean strings from FormData to actual booleans
+  if (data.requiresPrescription !== undefined) {
+    data.requiresPrescription =
+      data.requiresPrescription === "true" || data.requiresPrescription === true;
+  }
+
+  return data;
+};
+
+// =========================
 // ✅ SEARCH MEDICINE NEARBY
 // =========================
 const searchMedicineNearby = asyncHandler(async (req, res) => {
@@ -71,7 +110,6 @@ const suggestMedicines = asyncHandler(async (req, res) => {
 const getAllMedicines = asyncHandler(async (req, res) => {
   const { name, category, lat, lng, latitude, longitude } = req.query;
 
-  // Read User Coordinates
   const userLat = Number(lat || latitude);
   const userLng = Number(lng || longitude);
   const hasLocation = !isNaN(userLat) && !isNaN(userLng);
@@ -103,12 +141,10 @@ const getAllMedicines = asyncHandler(async (req, res) => {
     let vendorLng = null;
 
     if (pharmacy && pharmacy.location && Array.isArray(pharmacy.location.coordinates)) {
-      // MongoDB GeoJSON coordinates: [longitude, latitude][cite: 2]
       [vendorLng, vendorLat] = pharmacy.location.coordinates;
 
       if (hasLocation && vendorLat && vendorLng) {
         try {
-          // Calculate distance using helper utility[cite: 1]
           const rawDistance = calculateDistance(userLat, userLng, vendorLat, vendorLng);
           distance = Number(Number(rawDistance).toFixed(1));
         } catch (err) {
@@ -141,7 +177,6 @@ const getAllMedicines = asyncHandler(async (req, res) => {
     };
   });
 
-  // Sort nearest vendor medicines first if user location is provided
   if (hasLocation) {
     formattedMedicines.sort((a, b) => {
       if (a.distance === null) return 1;
@@ -175,13 +210,17 @@ const getMedicineById = asyncHandler(async (req, res) => {
 // ✅ ADD MEDICINE
 // =========================
 const addMedicine = asyncHandler(async (req, res) => {
+  console.log("--- ADD MEDICINE DEBUG ---[cite: 4]");
+  console.log("REQ.FILE:", req.file); // Check if file is received
+
   const pharmacy = await Pharmacy.findOne({ owner: req.user._id });
   if (!pharmacy) {
     if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
     return apiResponse.error(res, "No pharmacy linked to this account", 404);
   }
 
-  const medicineData = { ...req.body };
+  const parsedBody = parseMedicineBody(req.body);
+  const medicineData = { ...parsedBody };
 
   if (req.file) {
     medicineData.image = await uploadToCloudinary(req.file.path);
@@ -228,6 +267,9 @@ const bulkAddMedicines = asyncHandler(async (req, res) => {
 // ✅ UPDATE MEDICINE DETAILS
 // =========================
 const updateMedicine = asyncHandler(async (req, res) => {
+  console.log("--- UPDATE MEDICINE DEBUG ---[cite: 4]");
+  console.log("REQ.FILE:", req.file); // Check if image file is hitting controller
+
   const medicine = await Medicine.findById(req.params.medicineId).populate("pharmacy");
   if (!medicine) {
     if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
@@ -239,7 +281,8 @@ const updateMedicine = asyncHandler(async (req, res) => {
     return apiResponse.error(res, "Not authorized to edit this medicine", 403);
   }
 
-  const updateData = { ...req.body };
+  const parsedBody = parseMedicineBody(req.body);
+  const updateData = { ...parsedBody };
 
   if (req.file) {
     if (medicine.image?.publicId) {
@@ -333,7 +376,6 @@ const uploadMedicineImage = asyncHandler(async (req, res) => {
   }
 
   medicine.image = await uploadToCloudinary(req.file.path);
-
   await medicine.save();
 
   return apiResponse.success(res, { medicine }, "Medicine image uploaded successfully");
