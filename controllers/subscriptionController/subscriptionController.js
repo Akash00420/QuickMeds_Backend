@@ -11,10 +11,20 @@ const razorpay = new Razorpay({
 // ─── 1. Create Subscription Order ───
 exports.createSubscription = async (req, res) => {
   try {
-    const { planName = "Quick Med Pro", amount = 199 } = req.body; // Default amount ₹199 man lete hain
+    // Safely check for user ID without crashing
+    const userId = req.user?._id || req.user?.id || req.user;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication failed. User session not found. Please log in again.",
+      });
+    }
+
+    const { planName = "Quick Med Pro", amount = 199 } = req.body;
 
     const options = {
-      amount: amount * 100, // Paise mein
+      amount: amount * 100, // Convert to paise
       currency: "INR",
       receipt: `sub_${Date.now()}`,
     };
@@ -22,12 +32,15 @@ exports.createSubscription = async (req, res) => {
     const order = await razorpay.orders.create(options);
     
     if (!order) {
-      return res.status(500).json({ success: false, message: "Razorpay order creation failed" });
+      return res.status(500).json({ 
+        success: false, 
+        message: "Razorpay order creation failed" 
+      });
     }
 
-    // Database mein 'created' status ke sath save karein
+    // Line 30 Fixed: Uses safe userId variable
     const subscription = await Subscription.create({
-      userId: req.user.id,
+      userId: userId,
       orderId: order.id,
       planName,
       amount,
@@ -48,9 +61,17 @@ exports.createSubscription = async (req, res) => {
 // ─── 2. Verify Subscription Payment ───
 exports.verifySubscriptionPayment = async (req, res) => {
   try {
+    const userId = req.user?._id || req.user?.id || req.user;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication failed. User session not found.",
+      });
+    }
+
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
 
-    // Signature Verify Karein
     const sign = razorpay_order_id + "|" + razorpay_payment_id;
     const expectedSign = crypto
       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
@@ -58,14 +79,15 @@ exports.verifySubscriptionPayment = async (req, res) => {
       .digest("hex");
 
     if (razorpay_signature !== expectedSign) {
-      return res.status(400).json({ success: false, message: "Invalid payment signature!" });
+      return res.status(400).json({ 
+        success: false, 
+        message: "Invalid payment signature!" 
+      });
     }
 
-    // 30 days ki validity calculate karein
     const expiryDate = new Date();
     expiryDate.setDate(expiryDate.getDate() + 30);
 
-    // Subscription ko 'paid' mark karein
     const subscription = await Subscription.findOneAndUpdate(
       { orderId: razorpay_order_id },
       {
@@ -77,9 +99,8 @@ exports.verifySubscriptionPayment = async (req, res) => {
       { new: true }
     );
 
-    // User Model mein isSubscribed TRUE karein
     await User.findByIdAndUpdate(
-      req.user.id,
+      userId,
       {
         isSubscribed: true,
         subscriptionExpiry: expiryDate,

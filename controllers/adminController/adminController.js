@@ -4,10 +4,10 @@ const Pharmacy = require("../../models/pharmacyModel/pharmacyModel");
 // --- Dashboard Stats ----------------------------------------
 const getDashboardStats = async (req, res) => {
   try {
-    const totalUsers      = await User.countDocuments({ role: "customer" });
-    const subscribedUsers = await User.countDocuments({ role: "customer", isSubscribed: true });
-    const activeUsers     = await User.countDocuments({ role: "customer", isActive: true });
-    const freeUsers       = totalUsers - subscribedUsers;
+    const totalUsers = await User.countDocuments({ role: "user" });
+    const subscribedUsers = await User.countDocuments({ role: "user", isSubscribed: true });
+    const activeUsers = await User.countDocuments({ role: "user", isActive: true });
+    const freeUsers = totalUsers - subscribedUsers;
 
     return res.status(200).json({
       success: true,
@@ -33,7 +33,7 @@ const getDashboardStats = async (req, res) => {
 // --- Get All Users ------------------------------------------
 const getAllUsers = async (req, res) => {
   try {
-    const users = await User.find({ role: "customer" }).select("-password -__v -otp -otpExpiry");
+    const users = await User.find({ role: "user" }).select("-password -__v -otp -otpExpiry");
 
     return res.status(200).json({
       success: true,
@@ -52,7 +52,7 @@ const getAllUsers = async (req, res) => {
 // --- Get Subscribed Users -----------------------------------
 const getSubscribedUsers = async (req, res) => {
   try {
-    const users = await User.find({ role: "customer", isSubscribed: true })
+    const users = await User.find({ role: "user", isSubscribed: true })
       .select("-password -__v -otp -otpExpiry");
 
     return res.status(200).json({
